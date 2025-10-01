@@ -41,3 +41,54 @@ iface = gr.Interface(
 )
 
 iface.launch()
+
+
+## enhanced 
+import gradio as gr
+from transformers import T5Tokenizer, T5ForConditionalGeneration
+import torch
+
+# Load model and tokenizer
+MODEL_NAME = "t5-base"
+tokenizer = T5Tokenizer.from_pretrained(MODEL_NAME)
+model = T5ForConditionalGeneration.from_pretrained(MODEL_NAME)
+
+def summarize(text, max_length, min_length, temperature):
+    if not text or len(text.strip()) == 0:
+        return "Please provide valid text for summarization."
+    input_text = "summarize: " + text.strip()
+    inputs = tokenizer.encode(input_text, return_tensors="pt", max_length=1024, truncation=True)
+    with torch.no_grad():
+        summary_ids = model.generate(
+            inputs,
+            max_length=max_length,
+            min_length=min_length,
+            length_penalty=2.0,
+            num_beams=4,
+            temperature=temperature,
+            early_stopping=True
+        )
+    return tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+
+def save_summary(text, summary):
+    with open("summaries_log.txt", "a") as file:
+        file.write(f"INPUT: {text}\nSUMMARY: {summary}\n{'-'*80}\n")
+    return "Summary saved to summaries_log.txt!"
+
+# Correct usage of Gradio component syntax
+inputs = [
+    gr.Textbox(lines=8, label="Input Text"),
+    gr.Slider(50, 300, label="Max Summary Length", value=150),
+    gr.Slider(10, 100, label="Min Summary Length", value=40),
+    gr.Slider(0.7, 2.0, label="Creativity (Temperature)", value=1.0)
+]
+
+iface = gr.Interface(
+    fn=summarize,
+    inputs=inputs,
+    outputs=gr.Textbox(label="Summary"),
+    title="Enhanced Text Summarization with T5",
+    description="Enter text and adjust the summary parameters. This interface uses a T5 Transformer model for summarization."
+)
+
+iface.launch()
